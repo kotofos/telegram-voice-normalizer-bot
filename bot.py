@@ -2,18 +2,32 @@ import asyncio
 import os
 import logging
 
-from dotenv import load_dotenv
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import ContentType
 from aiogram.utils import executor
 
-load_dotenv()
+default_logging_format = (
+    '%(asctime)s %(levelname)-5.5s %(name)s %(module)s:%(funcName)s:%(lineno)d %(message)s'
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=default_logging_format,
+)
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    logging.info('Skipping .env loading')
+    pass
 
 bot = Bot(token=os.environ.get('TOKEN'))
 dp = Dispatcher(bot)
 
-logging.basicConfig(level=logging.INFO)
+TMP_DIR = '/tmp'
 
 
 @dp.message_handler(commands=['start'])
@@ -47,16 +61,17 @@ async def voice_message_handler(msg: types.Message):
         f'for {msg.from_user.username}'
     )
 
-    await bot.download_file_by_id(msg_content.file_id, msg_content.file_id)
+    in_name = f'{TMP_DIR}/{msg_content.file_id}'
+    out_name = f'{TMP_DIR}/{msg_content.file_id}-normalized.{container_fmt}'
 
-    in_name = msg_content.file_id
-    out_name = f'normalized/{msg_content.file_id}.{container_fmt}'
+    await bot.download_file_by_id(msg_content.file_id, in_name)
 
     # todo processing pool / queue to limit simultaneous processing
     # todo pipe to avoid files
 
     proc = await asyncio.create_subprocess_exec(
-        'ffmpeg-normalize', in_name, '-c:a', 'libopus', '-o', out_name, '-ofmt', container_fmt,
+        'ffmpeg-normalize', '-v', in_name, '-c:a', 'libopus',
+        '-o', out_name, '-ofmt', container_fmt,
     )
     await proc.wait()
 
