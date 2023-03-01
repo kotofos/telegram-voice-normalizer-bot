@@ -77,6 +77,8 @@ async def voice_message_handler(msg: types.Message):
 
     normalized = types.InputFile(out_name)
     await bot_send_content(msg.from_user.id, normalized)
+
+    # cleanup
     os.unlink(in_name)
     os.unlink(out_name)
     logging.info(f'Handled {msg.content_type} message for {msg.from_user.username}')
